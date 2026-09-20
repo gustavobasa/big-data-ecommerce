@@ -1,5 +1,11 @@
+# Dados gerados em tempo de execução (não versionar)
 data/
 flume-output/
 flume-state/
+
+# Python
 __pycache__/
-.vscode/
+*.pyc
+
+# Cópias de segurança locais
+docker-compose.antigo.txt
