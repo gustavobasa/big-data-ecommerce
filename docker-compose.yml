@@ -61,6 +61,9 @@ services:
       FLINK_PROPERTIES: |
         jobmanager.rpc.address: jobmanager
         jobmanager.memory.process.size: 1024m
+    volumes:
+      - ./flume-output:/data/flume-output:ro
+      - ./flink-output:/data/flink-output
     restart: "no"
 
   taskmanager:
@@ -75,8 +78,11 @@ services:
         jobmanager.rpc.address: jobmanager
         taskmanager.numberOfTaskSlots: 2
         taskmanager.memory.process.size: 1024m
+    volumes:
+      - ./flume-output:/data/flume-output:ro
+      - ./flink-output:/data/flink-output
     restart: "no"
-
+  
   # ---------------- SPARK (modo standalone) ----------------
   spark-master:
     image: spark:4.1.2-scala2.13-java21-ubuntu
