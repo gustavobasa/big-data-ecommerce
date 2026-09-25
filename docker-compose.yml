@@ -1,14 +1,18 @@
 # ============================================================
-# Ambiente da Semana 1 - big-data-ecommerce
+# Ambiente big-data-ecommerce (Semanas 1 a 3)
 #
 #   Flume  : captura os logs do gerador  -> sink de teste (funcionando)
-#   HDFS   : NameNode + DataNode         -> apenas "no ar" (sem uso ainda)
-#   Flink  : JobManager + TaskManager    -> apenas "no ar" (sem jobs ainda)
-#   Spark  : Master + Worker (standalone)-> apenas "no ar" (sem jobs ainda)
+#   HDFS   : NameNode + DataNode         -> "no ar" (ainda sem uso direto)
+#   Flink  : JobManager + TaskManager    -> job de trending + alertas no HBase
+#   Spark  : Master + Worker (standalone)-> job de ETL/insights (Semana 3)
+#   HBase  : standalone + REST           -> insights (Spark) e alertas (Flink)
+#   Hive   : HiveServer2 (metastore embutido) -> tabelas externas sobre o Parquet do Spark
 #
 # Subir tudo:     docker compose up -d
 # Ver situação:   docker compose ps
 # Derrubar tudo:  docker compose down
+#
+# Passo a passo da Semana 3: spark-job/README.md
 # ============================================================
 
 services:
@@ -82,7 +86,7 @@ services:
       - ./flume-output:/data/flume-output:ro
       - ./flink-output:/data/flink-output
     restart: "no"
-  
+
   # ---------------- SPARK (modo standalone) ----------------
   spark-master:
     image: spark:4.1.2-scala2.13-java21-ubuntu
@@ -92,6 +96,10 @@ services:
     ports:
       - "8080:8080"      # painel web do Spark Master
       - "7077:7077"      # porta de conexão dos jobs
+    volumes:
+      - ./flume-output:/data/flume-output:ro
+      - ./spark-output:/data/spark-output
+      - ./spark-job:/jobs:ro
     restart: "no"
 
   spark-worker:
@@ -105,6 +113,54 @@ services:
       SPARK_WORKER_DIR: "/tmp/spark-work"
     ports:
       - "8082:8081"      # painel web do Worker (8082 no Windows, para não colidir com o Flink)
+    volumes:
+      - ./flume-output:/data/flume-output:ro
+      - ./spark-output:/data/spark-output
+      - ./spark-job:/jobs:ro
     depends_on:
       - spark-master
+    restart: "no"
+
+  # ============================================================
+  # Ambiente da Semana 3 - Job Spark (ETL + wide dependencies) + Hive + HBase
+  #
+  #   HBase : Master standalone + REST server -> recebe os insights do Spark
+  #           e os alertas de trending do Flink (tudo via API REST, sem
+  #           precisar casar versões de client jar entre os três motores)
+  #   Hive  : HiveServer2 (metastore embutido) -> tabelas externas em cima
+  #           dos Parquets que o job Spark grava em ./spark-output
+  #
+  # Ver README de detalhes: spark-job/README.md
+  # ============================================================
+
+  # ---------------- HBASE (standalone + REST) ----------------
+  hbase:
+    image: bde2020/hbase-standalone:1.0.0-hbase1.2.6
+    container_name: hbase-standalone
+    hostname: hbase
+    environment:
+      HBASE_MANAGES_ZK: "true"
+    ports:
+      - "16010:16010"
+      - "8083:8080"
+    volumes:
+      - ./hbase-data:/hbase-data
+    restart: "no"
+
+  # ---------------- HIVE (HiveServer2 + metastore embutido) ----------------
+  hive:
+    image: apache/hive:3.1.3
+    container_name: hive-server
+    hostname: hive
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        export HADOOP_CLIENT_OPTS="-Xmx1G -Dhive.metastore.schema.verification=false -Ddatanucleus.schema.autoCreateAll=true -Ddatanucleus.autoCreateSchema=true"
+        exec /opt/hive/bin/hive --service hiveserver2
+    ports:
+      - "10000:10000"    
+      - "10002:10002"    
+    volumes:
+      - ./spark-output:/opt/hive/data/warehouse/spark_output:ro
+      - ./spark-job:/opt/hive/scripts:ro
     restart: "no"
