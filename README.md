@@ -1,5 +1,11 @@
 \# Big Data E-commerce
 
+\#Grupo:
+Gustavo Barros Sampaio - 2021020120
+Daniel Cláudio Rancan e Silva - 2021020043
+Gabriel da Silva Braga - 2023020063
+Marcelino
+
 
 
 \## 1. Visão geral
