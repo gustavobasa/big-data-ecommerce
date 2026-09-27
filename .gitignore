@@ -12,3 +12,6 @@ docker-compose.antigo.txt
 .DS_Store
 
 flink-output/
+
+# Artefatos gerados pelo Maven/Flink
+flink-job/target/
