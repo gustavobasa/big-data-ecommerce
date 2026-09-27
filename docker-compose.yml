@@ -138,14 +138,29 @@ services:
     image: bde2020/hbase-standalone:1.0.0-hbase1.2.6
     container_name: hbase-standalone
     hostname: hbase
+
     environment:
       HBASE_MANAGES_ZK: "true"
+
     ports:
       - "16010:16010"
       - "8083:8080"
+
     volumes:
       - ./hbase-data:/hbase-data
+
     restart: "no"
+
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        /opt/hbase-1.2.6/bin/start-hbase.sh
+        echo "Aguardando HBase..."
+        sleep 15
+        echo "Iniciando HBase REST..."
+        /opt/hbase-1.2.6/bin/hbase-daemon.sh start rest -p 8080
+        echo "REST iniciado."
+        tail -f /opt/hbase-1.2.6/logs/*
 
   # ---------------- HIVE (HiveServer2 + metastore embutido) ----------------
   hive:
@@ -154,13 +169,14 @@ services:
     hostname: hive
     entrypoint: ["/bin/bash", "-c"]
     command:
-      - |
-        export HADOOP_CLIENT_OPTS="-Xmx1G -Dhive.metastore.schema.verification=false -Ddatanucleus.schema.autoCreateAll=true -Ddatanucleus.autoCreateSchema=true"
-        exec /opt/hive/bin/hive --service hiveserver2
+    - |
+      export HADOOP_CLIENT_OPTS="-Xmx1G -Dhive.metastore.schema.verification=false -Ddatanucleus.schema.autoCreateAll=true -Ddatanucleus.autoCreateSchema=true -Dhive.execution.engine=mr"
+      exec /opt/hive/bin/hive --service hiveserver2
     ports:
       - "10000:10000"    
       - "10002:10002"    
     volumes:
       - ./spark-output:/opt/hive/data/warehouse/spark_output:ro
       - ./spark-job:/opt/hive/scripts:ro
+      - ./hive-conf/hive-site.xml:/opt/hive/conf/hive-site.xml:ro
     restart: "no"

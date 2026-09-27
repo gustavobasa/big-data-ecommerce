@@ -9,3 +9,6 @@ __pycache__/
 
 # Cópias de segurança locais
 docker-compose.antigo.txt
+.DS_Store
+
+flink-output/
